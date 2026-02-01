@@ -1,12 +1,8 @@
-from telegram import Bot
-import os
+import time
+from bot import start_bot
 
-bot = Bot(os.getenv("BOT_TOKEN"))
-channel = os.getenv("CHANNEL_ID")
+print("🤖 Bot iniciado")
 
-bot.send_message(
-    chat_id=channel,
-    text="🚨 TESTE: se você está vendo isso, o bot CONSEGUE postar no canal."
-)
-
-print("Teste enviado")
+while True:
+    start_bot()
+    time.sleep(3600)  # 1 post por hora
