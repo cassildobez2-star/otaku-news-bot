@@ -1,37 +1,26 @@
 import os
 import requests
-from telegram import Bot
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram import Update
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHANNEL_ID = os.getenv("CHANNEL_ID")
 
-bot = Bot(token=BOT_TOKEN)
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("✅ Bot online e respondendo!")
 
-def postar_noticia():
-    # Exemplo usando Jikan (MyAnimeList)
-    url = "https://api.jikan.moe/v4/top/anime"
-    r = requests.get(url, timeout=15).json()
-
-    anime = r["data"][0]
-
-    titulo = anime["title"]
-    score = anime["score"]
-    episodios = anime["episodes"]
-    imagem = anime["images"]["jpg"]["large_image_url"]
-
-    texto = (
-        f"🎌 *{titulo}*\n\n"
-        f"⭐ Nota: {score}\n"
-        f"📺 Episódios: {episodios}\n\n"
-        f"_Fonte: MyAnimeList_"
-    )
-
-    bot.send_photo(
+async def postar_teste(app):
+    await app.bot.send_message(
         chat_id=CHANNEL_ID,
-        photo=imagem,
-        caption=texto,
-        parse_mode="Markdown"
+        text="🚀 TESTE: Se você está vendo isso, o bot CONSEGUE postar no canal."
     )
 
 def start_bot():
-    postar_noticia()
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+
+    app.post_init = postar_teste  # <-- posta assim que inicia
+
+    print("🤖 Bot iniciado")
+    app.run_polling()
