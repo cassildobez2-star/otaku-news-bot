@@ -1,37 +1,43 @@
+import os
 import logging
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-# Habilita o log para o bot
-logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-                    level=logging.INFO)
-logger = logging.getLogger(__name__)
+# LOG
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO
+)
 
-# Comando /start
+# ===== COMANDOS =====
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Bot online e funcionando!")
+    await update.message.reply_text(
+        "🤖 Bot online!\n\n"
+        "Use /noticias para ver novidades do mundo otaku."
+    )
 
-# Comando /noticias
 async def noticias(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    noticias = """Últimas notícias sobre animes:
-    1. Novo episódio de Attack on Titan está disponível.
-    2. Lançamento de Demon Slayer: Kimetsu no Yaiba.
-    3. Estreia de Jujutsu Kaisen 2ª temporada.
-    4. Boruto recebe novo arco no mangá.
-    """
-    await update.message.reply_text(noticias)
+    texto = (
+        "📰 *Notícias Otaku*\n\n"
+        "🔥 Novo trailer de Jujutsu Kaisen\n"
+        "📺 Attack on Titan segue entre os mais vistos\n"
+        "📚 One Piece ultrapassa 500 milhões de cópias\n"
+    )
+    await update.message.reply_text(texto, parse_mode="Markdown")
 
-# Função para configurar o bot
-def main():
-    # Cria a aplicação com o token do bot
-    application = Application.builder().token('8515193241:AAFI1yj3tpW039zdhpDgwBBCkyhgRkcUS5k').build()
+# ===== FUNÇÃO QUE O MAIN IMPORTA =====
 
-    # Adiciona os handlers de comando
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("noticias", noticias))
+def start_bot():
+    TOKEN = os.getenv("BOT_TOKEN")
 
-    # Inicia o bot
-    application.run_polling()
+    if not TOKEN:
+        raise RuntimeError("BOT_TOKEN não encontrado nas variáveis de ambiente")
 
-if __name__ == "__main__":
-    main()
+    app = Application.builder().token(TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("noticias", noticias))
+
+    print("✅ Bot iniciado com sucesso")
+    app.run_polling()
