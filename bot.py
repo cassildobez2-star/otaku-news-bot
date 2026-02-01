@@ -1,10 +1,9 @@
 import os
-import json
 import requests
-import random
+import json
 from googletrans import Translator
+from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-from telegram import Update, InputMediaPhoto
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHANNEL_ID = os.getenv("CHANNEL_ID")
@@ -12,61 +11,62 @@ CHANNEL_ID = os.getenv("CHANNEL_ID")
 translator = Translator()
 POSTED_FILE = "posted_ids.json"
 
-# ================= UTIL =================
+# ---------- UTIL ----------
 
 def load_posted():
-    if not os.path.exists(POSTED_FILE):
+    try:
+        with open(POSTED_FILE, "r") as f:
+            return set(json.load(f))
+    except:
         return set()
-    with open(POSTED_FILE, "r") as f:
-        return set(json.load(f))
 
 def save_posted(data):
     with open(POSTED_FILE, "w") as f:
         json.dump(list(data), f)
 
-def traduzir(texto):
+def traduzir(txt):
     try:
-        return translator.translate(texto, dest="pt").text
+        return translator.translate(txt, dest="pt").text
     except:
-        return texto
+        return txt
 
-# ================= JIKAN =================
+# ---------- JIKAN ----------
 
 def buscar_anime():
     url = "https://api.jikan.moe/v4/top/anime"
-    r = requests.get(url, timeout=20).json()
-    return random.choice(r["data"])
+    r = requests.get(url, timeout=15)
+    return r.json()["data"][0]
 
-def formatar_post(anime):
-    titulo = anime["title"]
-    sinopse = anime.get("synopsis", "Sem sinopse disponível.")
-    score = anime.get("score", "N/A")
+def montar_post(anime):
+    titulo = traduzir(anime["title"])
+    sinopse = traduzir(anime.get("synopsis", "Sem sinopse."))
+    nota = anime.get("score", "N/A")
     eps = anime.get("episodes", "N/A")
-    status = anime.get("status", "N/A")
-    img = anime["images"]["jpg"]["large_image_url"]
+    imagem = anime["images"]["jpg"]["large_image_url"]
+    anime_id = str(anime["mal_id"])
 
     texto = (
-        f"🎬 **{traduzir(titulo)}**\n\n"
-        f"📊 Nota: {score}\n"
-        f"🎞️ Episódios: {eps}\n"
-        f"📌 Status: {traduzir(status)}\n\n"
-        f"📝 {traduzir(sinopse[:700])}..."
+        f"🎬 **{titulo}**\n\n"
+        f"⭐ Nota: {nota}\n"
+        f"🎞️ Episódios: {eps}\n\n"
+        f"📝 {sinopse[:800]}"
     )
 
-    return texto, img, anime["mal_id"]
+    return texto, imagem, anime_id
 
-# ================= BOT =================
+# ---------- COMANDOS ----------
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🤖 Bot online! Notícias automáticas rodando.")
+    await update.message.reply_text("🤖 Bot online!\nUse /postar para enviar uma notícia.")
 
-async def postar_noticia(context: ContextTypes.DEFAULT_TYPE):
+async def postar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     posted = load_posted()
 
     anime = buscar_anime()
-    texto, imagem, anime_id = formatar_post(anime)
+    texto, imagem, anime_id = montar_post(anime)
 
-    if str(anime_id) in posted:
+    if anime_id in posted:
+        await update.message.reply_text("⚠️ Anime já postado, tente novamente.")
         return
 
     await context.bot.send_photo(
@@ -76,24 +76,20 @@ async def postar_noticia(context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown"
     )
 
-    posted.add(str(anime_id))
+    posted.add(anime_id)
     save_posted(posted)
 
-# ================= MAIN =================
+    await update.message.reply_text("✅ Notícia postada com sucesso!")
+
+# ---------- MAIN ----------
 
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("postar", postar))
 
-    # posta a cada 6 horas (4 por dia)
-    app.job_queue.run_repeating(
-        postar_noticia,
-        interval=21600,
-        first=10
-    )
-
-    print("🤖 Bot de notícias otaku iniciado")
+    print("🤖 Bot iniciado")
     app.run_polling()
 
 if __name__ == "__main__":
